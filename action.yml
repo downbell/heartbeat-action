@@ -1,0 +1,30 @@
+name: 'Downbell heartbeat'
+description: 'Ping a Downbell heartbeat monitor when a scheduled workflow succeeds, and get alerted on your phone when it stops running.'
+author: 'Downbell'
+branding:
+  icon: 'bell'
+  color: 'purple'
+inputs:
+  token:
+    description: 'The heartbeat token from your Downbell monitor (store it as a repository secret).'
+    required: true
+  url:
+    description: 'Base URL, only needed for self-hosted setups.'
+    required: false
+    default: 'https://downbell.app'
+runs:
+  using: 'composite'
+  steps:
+    - name: Ping Downbell
+      shell: bash
+      env:
+        DOWNBELL_TOKEN: ${{ inputs.token }}
+        DOWNBELL_URL: ${{ inputs.url }}
+      run: |
+        if [[ ! "$DOWNBELL_TOKEN" =~ ^[A-Za-z0-9_-]{16,64}$ ]]; then
+          echo "::error::The Downbell heartbeat token looks wrong. Copy it from the monitor page."
+          exit 1
+        fi
+        curl -fsS --retry 3 --retry-delay 5 --max-time 15 "${DOWNBELL_URL%/}/h/${DOWNBELL_TOKEN}" > /dev/null \
+          && echo "Heartbeat sent to Downbell." \
+          || echo "::warning::Couldn't reach Downbell. The workflow itself succeeded."
